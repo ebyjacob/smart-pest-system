@@ -410,99 +410,350 @@
     /* ═══════════ 4. FLOOR PLAN ═══════════ */
     function FloorPlanTab() {
       const [showRisk, setShowRisk] = useState(true);
+      const [showCoverage, setShowCoverage] = useState(true);
+      const [showPipes, setShowPipes] = useState(true);
+      const [selected, setSelected] = useState(null);
+      const [simTime, setSimTime] = useState(0);
+      const [simRunning, setSimRunning] = useState(false);
+
+      /* Simulation auto-advance */
+      useEffect(() => {
+        if (!simRunning) return;
+        if (simTime >= 7) { setSimRunning(false); return; }
+        const t = setTimeout(() => setSimTime(s => s + 1), 1200);
+        return () => clearTimeout(t);
+      }, [simRunning, simTime]);
+
+      const timeline = [
+        { t: '0.00s', label: 'PIR Trigger', desc: 'Thermal anomaly 26–32°C detected by passive infrared sensor within 3m radius', color: '#16A34A', icon: '🌡️' },
+        { t: '0.20s', label: 'Camera Wake', desc: 'IR+RGB dual-stream camera powers on from deep sleep. 640×480 @ 30fps capture begins', color: '#2563EB', icon: '📷' },
+        { t: '0.22s', label: 'ML Inference', desc: 'YOLOv8-nano on Jetson Orin Nano classifies species. Confidence threshold ≥95%', color: '#7C3AED', icon: '🧠' },
+        { t: '0.26s', label: 'Safety Check', desc: 'Wide-angle thermal scans for organisms >500g. BLE pet beacon check. Time-window validated', color: '#B45309', icon: '🐾' },
+        { t: '0.28s', label: 'Sensor Fusion', desc: 'Minimum 2 modalities agree (Camera+PIR or Camera+Sound). Reject if ambiguous', color: '#16A34A', icon: '✅' },
+        { t: '0.50s', label: 'Bait Dispense', desc: 'Micro-pump releases 0.5ml pheromone to guide target toward one-way entry tunnel', color: '#B45309', icon: '🎯' },
+        { t: '1.00s', label: 'Kill Cascade', desc: 'EF grid 1.4kV (instant) → IR heat 70°C (90s) → Cold atmospheric plasma (30s)', color: '#DC2626', icon: '⚡' },
+        { t: '2.50s', label: 'MQTT Report', desc: 'Kill photo + timestamp + confidence + sensor data → cloud dashboard. Push notification sent', color: '#2563EB', icon: '📊' },
+      ];
+
+      const traps = [
+        { id: 'T1', x: 285, y: 190, label: 'Under Sink', fov: 120, reason: 'Adjacent to drain pipe — primary cockroach entry point. Warm, dark, humid environment ideal for nesting.' },
+        { id: 'T2', x: 530, y: 200, label: 'Behind Fridge', fov: 90, reason: 'Warm compressor exhaust attracts cockroaches. Gap between fridge and wall provides harbourage.' },
+        { id: 'T3', x: 115, y: 440, label: 'Near Door', fov: 140, reason: 'External entry point. Cockroaches enter via door gap (≥3mm). High nocturnal traffic zone.' },
+      ];
+
+      const F = 'JetBrains Mono';
 
       return (
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Deployment — Kitchen Floor Plan</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12 }}>Strategic placement at high-risk entry points. Blue zones = camera coverage. Red zones = cockroach risk areas.</p>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, cursor: 'pointer' }}>
-            <input type="checkbox" checked={showRisk} onChange={e => setShowRisk(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
-            Show cockroach risk heat map
-          </label>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Deployment Floor Plan — Kitchen</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 14 }}>Typical residential kitchen (4.2m × 3.6m). Click any trap unit for placement rationale. Use the toggles to show/hide overlays.</p>
 
-          <svg viewBox="0 0 700 480" style={{ width: '100%', background: '#fff', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          {/* Toggle Controls */}
+          <div style={{ display: 'flex', gap: 14, marginBottom: 18, flexWrap: 'wrap' }}>
+            {[
+              ['Risk Zones', showRisk, setShowRisk, '#DC2626'],
+              ['PIR Coverage', showCoverage, setShowCoverage, '#2563EB'],
+              ['Pipe Routes', showPipes, setShowPipes, '#B45309'],
+            ].map(([label, val, setter, col]) => (
+              <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: val ? col : 'var(--text-muted)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={val} onChange={e => setter(e.target.checked)} style={{ accentColor: col, width: 15, height: 15 }} />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          {/* ═══════ SVG FLOOR PLAN ═══════ */}
+          <svg viewBox="0 0 680 560" style={{ width: '100%', background: '#FEFDFB', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <defs>
-              <radialGradient id="camG" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#2563EB" stopOpacity="0.1" /><stop offset="100%" stopColor="#2563EB" stopOpacity="0" /></radialGradient>
-              <radialGradient id="riskG" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#DC2626" stopOpacity="0.15" /><stop offset="100%" stopColor="#DC2626" stopOpacity="0" /></radialGradient>
+              <radialGradient id="covG"><stop offset="0%" stopColor="#2563EB" stopOpacity="0.10" /><stop offset="100%" stopColor="#2563EB" stopOpacity="0" /></radialGradient>
+              <radialGradient id="rskG"><stop offset="0%" stopColor="#DC2626" stopOpacity="0.14" /><stop offset="100%" stopColor="#DC2626" stopOpacity="0" /></radialGradient>
+              <pattern id="grd" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0L0 0 0 25" fill="none" stroke="#E8E4DF" strokeWidth="0.4"/></pattern>
             </defs>
 
-            {/* Room */}
-            <rect x="40" y="30" width="620" height="410" rx="4" fill="#FAFAF9" stroke="#D1CBC4" strokeWidth="2.5" />
+            {/* ── GRID ── */}
+            <rect x="80" y="65" width="480" height="410" fill="url(#grd)" />
 
-            {/* Fixtures */}
-            <rect x="40" y="30" width="200" height="75" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1.5" />
-            <text x="110" y="72" fill="#78716C" fontSize="11" fontFamily="JetBrains Mono" textAnchor="middle">Counter</text>
+            {/* ══════ WALLS (thick architectural style) ══════ */}
+            <rect x="80" y="65" width="480" height="410" rx="0" fill="none" stroke="#44403C" strokeWidth="6" />
+            {/* Inner wall line for thickness effect */}
+            <rect x="83" y="68" width="474" height="404" rx="0" fill="none" stroke="#78716C" strokeWidth="1" strokeDasharray="0" />
 
-            <rect x="250" y="30" width="80" height="55" rx="8" fill="#EFF6FF" stroke="#D1CBC4" strokeWidth="1.5" />
-            <text x="290" y="62" fill="#78716C" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">Sink</text>
+            {/* ══════ DIMENSION LINES ══════ */}
+            {/* Top: 4.2m */}
+            <line x1="80" y1="42" x2="560" y2="42" stroke="#78716C" strokeWidth="1" />
+            <line x1="80" y1="36" x2="80" y2="48" stroke="#78716C" strokeWidth="1" />
+            <line x1="560" y1="36" x2="560" y2="48" stroke="#78716C" strokeWidth="1" />
+            <rect x="260" y="30" width="80" height="18" rx="3" fill="#fff" stroke="#D1CBC4" strokeWidth="0.8" />
+            <text x="300" y="43" textAnchor="middle" fill="#44403C" fontSize="11" fontFamily={F} fontWeight="600">4,200 mm</text>
 
-            <rect x="350" y="30" width="90" height="55" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1.5" />
-            <text x="395" y="62" fill="#78716C" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">Stove</text>
+            {/* Left: 3.6m */}
+            <line x1="56" y1="65" x2="56" y2="475" stroke="#78716C" strokeWidth="1" />
+            <line x1="50" y1="65" x2="62" y2="65" stroke="#78716C" strokeWidth="1" />
+            <line x1="50" y1="475" x2="62" y2="475" stroke="#78716C" strokeWidth="1" />
+            <text x="54" y="275" textAnchor="middle" fill="#44403C" fontSize="11" fontFamily={F} fontWeight="600" transform="rotate(-90,54,275)">3,600 mm</text>
 
-            <rect x="555" y="30" width="105" height="110" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1.5" />
-            <text x="608" y="90" fill="#78716C" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">Fridge</text>
+            {/* ══════ COUNTER + CABINETS (north wall) ══════ */}
+            <rect x="83" y="68" width="200" height="70" fill="#EDEBE8" stroke="#78716C" strokeWidth="1.5" />
+            <line x1="150" y1="68" x2="150" y2="138" stroke="#D1CBC4" strokeWidth="1" strokeDasharray="4,3" />
+            <text x="116" y="108" textAnchor="middle" fill="#57534E" fontSize="10" fontFamily={F}>Cabinet</text>
+            <text x="215" y="108" textAnchor="middle" fill="#57534E" fontSize="10" fontFamily={F}>Cabinet</text>
+            {/* Counter dim */}
+            <line x1="83" y1="148" x2="283" y2="148" stroke="#A8A29E" strokeWidth="0.6" strokeDasharray="3,3" />
+            <text x="183" y="160" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily={F}>2,000 mm</text>
 
-            {/* Drain */}
-            <circle cx="290" cy="115" r="10" fill="#FEF2F2" stroke="#DC2626" strokeWidth="1.5" strokeDasharray="4,2" />
-            <text x="290" y="119" textAnchor="middle" fill="#DC2626" fontSize="7" fontFamily="JetBrains Mono">DRAIN</text>
+            {/* ══════ SINK ══════ */}
+            <rect x="290" y="68" width="85" height="60" rx="12" fill="#DBEAFE" stroke="#78716C" strokeWidth="1.5" />
+            <rect x="302" y="78" width="60" height="38" rx="8" fill="#BFDBFE" stroke="#93C5FD" strokeWidth="1.2" />
+            <circle cx="352" cy="84" r="4" fill="#78716C" />
+            <text x="332" y="68" textAnchor="middle" fill="#2563EB" fontSize="12" fontFamily={F} fontWeight="700" dy="-6">SINK</text>
+            <text x="332" y="140" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily={F}>850 × 600 mm</text>
 
-            {/* Door */}
-            <rect x="40" y="310" width="6" height="75" fill="#B45309" rx="2" />
-            <text x="56" y="352" fill="#B45309" fontSize="10" fontFamily="JetBrains Mono" fontWeight="600">Door</text>
-
-            {/* Risk zones */}
-            {showRisk && <>
-              <circle cx="290" cy="115" r="75" fill="url(#riskG)" />
-              <circle cx="140" cy="72" r="55" fill="url(#riskG)" />
-              <circle cx="608" cy="140" r="65" fill="url(#riskG)" />
-              <circle cx="46" cy="347" r="45" fill="url(#riskG)" />
+            {/* ── Drain + pipe ── */}
+            {showPipes && <>
+              <line x1="332" y1="128" x2="332" y2="195" stroke="#B45309" strokeWidth="3" strokeDasharray="8,4" opacity="0.7" />
+              <circle cx="332" cy="195" r="10" fill="#FEF3C7" stroke="#B45309" strokeWidth="2" />
+              <text x="332" y="199" textAnchor="middle" fill="#B45309" fontSize="9" fontFamily={F} fontWeight="700">D</text>
+              <text x="355" y="192" fill="#B45309" fontSize="9" fontFamily={F}>Drain 40∅</text>
+              <line x1="332" y1="205" x2="332" y2="475" stroke="#B45309" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.35" />
+              <text x="342" y="465" fill="#B45309" fontSize="8" fontFamily={F} opacity="0.5">waste →</text>
             </>}
 
-            {/* Trap T1 */}
-            <rect x="262" y="100" width="36" height="22" rx="5" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
-            <text x="280" y="115" textAnchor="middle" fill="#DC2626" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">T1</text>
-            <circle cx="280" cy="111" r="45" fill="url(#camG)"><animate attributeName="r" values="40;50;40" dur="3s" repeatCount="indefinite" /></circle>
+            {/* ══════ HOB / STOVE ══════ */}
+            <rect x="383" y="68" width="90" height="60" fill="#EDEBE8" stroke="#78716C" strokeWidth="1.5" />
+            {[0,1,2,3].map(i => <circle key={`h${i}`} cx={403 + (i%2)*50} cy={85 + Math.floor(i/2)*26} r="10" fill="none" stroke="#DC2626" strokeWidth="1.2" opacity="0.45" />)}
+            <text x="428" y="68" textAnchor="middle" fill="#57534E" fontSize="12" fontFamily={F} fontWeight="700" dy="-6">HOB</text>
+            <text x="428" y="140" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily={F}>900 × 600 mm</text>
 
-            {/* Trap T2 */}
-            <rect x="540" y="148" width="36" height="22" rx="5" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
-            <text x="558" y="163" textAnchor="middle" fill="#DC2626" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">T2</text>
-            <circle cx="558" cy="159" r="45" fill="url(#camG)"><animate attributeName="r" values="40;50;40" dur="3s" repeatCount="indefinite" /></circle>
+            {/* ══════ FRIDGE ══════ */}
+            <rect x="480" y="68" width="74" height="135" fill="#EDEBE8" stroke="#78716C" strokeWidth="1.5" />
+            <rect x="484" y="72" width="66" height="78" rx="3" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="0.8" />
+            <text x="517" y="115" textAnchor="middle" fill="#57534E" fontSize="11" fontFamily={F} fontWeight="600">Fridge</text>
+            <rect x="484" y="155" width="66" height="42" rx="3" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="0.8" />
+            <text x="517" y="180" textAnchor="middle" fill="#57534E" fontSize="10" fontFamily={F}>Freezer</text>
+            <text x="517" y="214" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily={F}>740 × 600 mm</text>
+            {showPipes && <text x="517" y="228" textAnchor="middle" fill="#DC2626" fontSize="8" fontFamily={F}>↓ warm exhaust</text>}
+            {/* Fridge dim line */}
+            <line x1="480" y1="210" x2="554" y2="210" stroke="#A8A29E" strokeWidth="0.6" strokeDasharray="3,3" />
 
-            {/* Trap T3 */}
-            <rect x="62" y="328" width="36" height="22" rx="5" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
-            <text x="80" y="343" textAnchor="middle" fill="#DC2626" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">T3</text>
-            <circle cx="80" cy="339" r="45" fill="url(#camG)"><animate attributeName="r" values="40;50;40" dur="3s" repeatCount="indefinite" /></circle>
+            {/* ══════ DOOR (west wall) ══════ */}
+            <rect x="80" y="365" width="6" height="80" fill="#B45309" />
+            <path d="M86,365 A80,80 0 0,1 150,420" fill="none" stroke="#B45309" strokeWidth="1.2" strokeDasharray="5,3" />
+            <text x="100" y="410" fill="#B45309" fontSize="13" fontFamily={F} fontWeight="700">DOOR</text>
+            <text x="100" y="425" fill="#A8A29E" fontSize="10" fontFamily={F}>800 mm</text>
+            <text x="100" y="455" fill="#DC2626" fontSize="9" fontFamily={F}>⚠ Gap ≥ 3mm</text>
+            <text x="100" y="467" fill="#DC2626" fontSize="8" fontFamily={F}>(cockroach entry)</text>
 
-            {/* Env Sensor */}
-            <rect x="380" y="230" width="48" height="28" rx="5" fill="#F0FDF4" stroke="#16A34A" strokeWidth="1.5" />
-            <text x="404" y="248" textAnchor="middle" fill="#16A34A" fontSize="8" fontFamily="JetBrains Mono" fontWeight="600">ENV</text>
-            <text x="404" y="272" textAnchor="middle" fill="#78716C" fontSize="7" fontFamily="JetBrains Mono">Temp/RH/VOC</text>
+            {/* ══════ WINDOW (east wall) ══════ */}
+            <rect x="554" y="250" width="6" height="95" fill="#BFDBFE" stroke="#78716C" strokeWidth="1" />
+            <text x="570" y="302" fill="#78716C" fontSize="10" fontFamily={F} transform="rotate(90,570,302)">Window 950 mm</text>
 
-            {/* Gateway */}
-            <rect x="290" y="360" width="100" height="45" rx="8" fill="#F5F3FF" stroke="#7C3AED" strokeWidth="2" />
-            <text x="340" y="380" textAnchor="middle" fill="#7C3AED" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono">GATEWAY</text>
-            <text x="340" y="394" textAnchor="middle" fill="#7C3AED" fontSize="8" fontFamily="JetBrains Mono">HUB</text>
-            <text x="340" y="420" textAnchor="middle" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">MQTT → Cloud Dashboard</text>
+            {/* ══════ KICKBOARD VENT ══════ */}
+            {showPipes && <>
+              <rect x="120" y="134" width="35" height="8" fill="#FEF3C7" stroke="#B45309" strokeWidth="1" rx="2" />
+              <text x="137" y="155" textAnchor="middle" fill="#B45309" fontSize="8" fontFamily={F}>Vent</text>
+            </>}
 
-            {/* Connections */}
-            {[[280,111,340,360],[558,159,340,360],[80,339,340,360],[404,258,340,360]].map(([x1,y1,x2,y2], i) => (
-              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7C3AED" strokeWidth="1" strokeDasharray="6,4" opacity="0.35">
-                <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1.2s" repeatCount="indefinite" />
+            {/* ══════ POWER OUTLETS ══════ */}
+            {[{x:200,y:138},{x:554,y:180},{x:86,y:340}].map((p,i) => (
+              <g key={`pw${i}`}>
+                <rect x={p.x} y={p.y} width="12" height="8" rx="2" fill="#fff" stroke="#78716C" strokeWidth="1" />
+                <text x={p.x+6} y={p.y+6} textAnchor="middle" fill="#78716C" fontSize="5" fontFamily={F}>⏻</text>
+              </g>
+            ))}
+
+            {/* ══════ RISK ZONES ══════ */}
+            {showRisk && <>
+              <circle cx="332" cy="195" r="100" fill="url(#rskG)" />
+              <text x="370" y="260" fill="#DC2626" fontSize="10" fontFamily={F} fontWeight="600" opacity="0.6">HIGH</text>
+              <circle cx="517" cy="230" r="80" fill="url(#rskG)" />
+              <text x="530" y="280" fill="#DC2626" fontSize="9" fontFamily={F} fontWeight="600" opacity="0.5">MED</text>
+              <circle cx="95" cy="405" r="65" fill="url(#rskG)" />
+              <text x="130" y="385" fill="#DC2626" fontSize="9" fontFamily={F} fontWeight="600" opacity="0.5">MED</text>
+              <circle cx="160" cy="110" r="55" fill="url(#rskG)" />
+              <text x="160" y="95" fill="#DC2626" fontSize="8" fontFamily={F} fontWeight="600" opacity="0.4" textAnchor="middle">LOW</text>
+            </>}
+
+            {/* ══════ PIR COVERAGE ══════ */}
+            {showCoverage && <>
+              {traps.map((t,i) => (
+                <g key={`c${i}`}>
+                  <circle cx={t.x} cy={t.y} r="105" fill="url(#covG)" />
+                  <circle cx={t.x} cy={t.y} r="105" fill="none" stroke="#2563EB" strokeWidth="0.8" strokeDasharray="4,4" opacity="0.3" />
+                  <text x={t.x + (i===1 ? -30 : 30)} y={t.y + 85} textAnchor="middle" fill="#2563EB" fontSize="9" fontFamily={F} opacity="0.6">3m PIR</text>
+                </g>
+              ))}
+            </>}
+
+            {/* ══════ TRAP UNITS ══════ */}
+            {traps.map((t,i) => {
+              const isSel = selected === i;
+              return (
+                <g key={t.id} onClick={() => setSelected(isSel ? null : i)} style={{ cursor: 'pointer' }}>
+                  <rect x={t.x-28} y={t.y-15} width="56" height="30" rx="6"
+                    fill={isSel ? '#FEF2F2' : '#fff'} stroke="#DC2626" strokeWidth={isSel ? 3 : 2} />
+                  <text x={t.x} y={t.y+5} textAnchor="middle" fill="#DC2626" fontSize="14" fontWeight="700" fontFamily={F}>{t.id}</text>
+                  <text x={t.x} y={t.y+26} textAnchor="middle" fill="#57534E" fontSize="10" fontFamily={F} fontWeight="500">{t.label}</text>
+                  <text x={t.x} y={t.y+38} textAnchor="middle" fill="#A8A29E" fontSize="8" fontFamily={F}>280×180 mm</text>
+                  <text x={t.x} y={t.y+48} textAnchor="middle" fill="#A8A29E" fontSize="8" fontFamily={F}>FOV: {t.fov}°</text>
+                  {isSel && <rect x={t.x-32} y={t.y-19} width="64" height="38" rx="9" fill="none" stroke="#DC2626" strokeWidth="1.5">
+                    <animate attributeName="opacity" values="0.6;0.1;0.6" dur="1.5s" repeatCount="indefinite" />
+                  </rect>}
+                </g>
+              );
+            })}
+
+            {/* ══════ ENV SENSOR ══════ */}
+            <rect x="265" y="310" width="60" height="34" rx="6" fill="#F0FDF4" stroke="#16A34A" strokeWidth="2" />
+            <text x="295" y="326" textAnchor="middle" fill="#16A34A" fontSize="11" fontFamily={F} fontWeight="700">ENV</text>
+            <text x="295" y="339" textAnchor="middle" fill="#16A34A" fontSize="8" fontFamily={F}>T / RH / VOC</text>
+            <text x="295" y="357" textAnchor="middle" fill="#A8A29E" fontSize="8" fontFamily={F}>Samples every 30s</text>
+
+            {/* ══════ GATEWAY ══════ */}
+            <rect x="360" y="340" width="110" height="50" rx="8" fill="#F5F3FF" stroke="#7C3AED" strokeWidth="2.5" />
+            <text x="415" y="362" textAnchor="middle" fill="#7C3AED" fontSize="13" fontWeight="700" fontFamily={F}>GATEWAY</text>
+            <text x="415" y="378" textAnchor="middle" fill="#7C3AED" fontSize="9" fontFamily={F}>MQTT Broker</text>
+            <text x="415" y="404" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily={F}>WiFi → Cloud · latency &lt;50ms</text>
+
+            {/* ══════ NETWORK LINES ══════ */}
+            {[
+              [285,205,415,340],
+              [530,215,470,355],
+              [115,455,380,390],
+              [325,340,365,355],
+            ].map(([x1,y1,x2,y2],i) => (
+              <line key={`n${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7C3AED" strokeWidth="1" strokeDasharray="6,4" opacity="0.3">
+                <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" repeatCount="indefinite" />
               </line>
             ))}
 
-            {/* Legend */}
-            <rect x="465" y="330" width="180" height="95" rx="8" fill="#FAFAF9" stroke="#E8E4DF" strokeWidth="1" />
-            <text x="480" y="350" fill="#78716C" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono">Legend</text>
-            <rect x="480" y="358" width="10" height="7" rx="2" fill="#FEF2F2" stroke="#DC2626" strokeWidth="1" />
-            <text x="498" y="365" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Smart Trap Unit</text>
-            <circle cx="485" y="380" r="5" fill="#2563EB" opacity="0.15" stroke="#2563EB" strokeWidth="0.5" />
-            <text x="498" y="383" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Camera Coverage</text>
-            <circle cx="485" cy="398" r="5" fill="#DC2626" opacity="0.15" />
-            <text x="498" y="401" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Risk Zone</text>
-            <rect x="480" y="409" width="10" height="7" rx="2" fill="#F0FDF4" stroke="#16A34A" strokeWidth="1" />
-            <text x="498" y="416" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Env Sensor</text>
+            {/* ══════ DISTANCE LINES ══════ */}
+            <line x1="307" y1="190" x2="508" y2="200" stroke="#78716C" strokeWidth="0.7" strokeDasharray="3,3" />
+            <rect x="380" y="183" width="62" height="18" rx="4" fill="#fff" stroke="#D1CBC4" strokeWidth="0.8" />
+            <text x="411" y="196" textAnchor="middle" fill="#57534E" fontSize="9" fontFamily={F}>2.95 m</text>
+
+            <line x1="263" y1="200" x2="130" y2="430" stroke="#78716C" strokeWidth="0.7" strokeDasharray="3,3" />
+            <rect x="162" y="308" width="62" height="18" rx="4" fill="#fff" stroke="#D1CBC4" strokeWidth="0.8" />
+            <text x="193" y="321" textAnchor="middle" fill="#57534E" fontSize="9" fontFamily={F}>3.10 m</text>
+
+            <line x1="508" y1="210" x2="137" y2="440" stroke="#78716C" strokeWidth="0.7" strokeDasharray="3,3" />
+            <rect x="295" y="330" width="62" height="18" rx="4" fill="#fff" stroke="#D1CBC4" strokeWidth="0.8" />
+            <text x="326" y="343" textAnchor="middle" fill="#57534E" fontSize="9" fontFamily={F}>5.20 m</text>
+
+            {/* ══════ COMPASS ══════ */}
+            <g transform="translate(610,490)">
+              <circle cx="0" cy="0" r="22" fill="#FAFAF9" stroke="#D1CBC4" strokeWidth="1.2" />
+              <text x="0" y="-7" textAnchor="middle" fill="#1C1917" fontSize="12" fontFamily={F} fontWeight="700">N</text>
+              <polygon points="0,-17 -4,-9 4,-9" fill="#DC2626" />
+              <polygon points="0,17 -4,9 4,9" fill="#D1CBC4" />
+            </g>
+
+            {/* ══════ SCALE BAR ══════ */}
+            <line x1="80" y1="530" x2="194" y2="530" stroke="#1C1917" strokeWidth="2" />
+            <line x1="80" y1="526" x2="80" y2="534" stroke="#1C1917" strokeWidth="1.5" />
+            <line x1="194" y1="526" x2="194" y2="534" stroke="#1C1917" strokeWidth="1.5" />
+            <text x="137" y="525" textAnchor="middle" fill="#1C1917" fontSize="11" fontFamily={F} fontWeight="600">1 metre</text>
+
+            {/* ══════ LEGEND ══════ */}
+            <rect x="240" y="495" width="290" height="55" rx="8" fill="#FAFAF9" stroke="#E8E4DF" strokeWidth="1" />
+            <text x="255" y="513" fill="#1C1917" fontSize="10" fontWeight="700" fontFamily={F}>LEGEND</text>
+            <rect x="255" y="522" width="14" height="10" rx="2" fill="#fff" stroke="#DC2626" strokeWidth="1.5" />
+            <text x="275" y="531" fill="#57534E" fontSize="9" fontFamily={F}>Trap (STU)</text>
+            <circle cx="337" cy="527" r="6" fill="#2563EB" opacity="0.15" stroke="#2563EB" strokeWidth="0.8" />
+            <text x="349" y="531" fill="#57534E" fontSize="9" fontFamily={F}>PIR 3m</text>
+            <circle cx="400" cy="527" r="6" fill="#DC2626" opacity="0.15" />
+            <text x="412" y="531" fill="#57534E" fontSize="9" fontFamily={F}>Risk</text>
+            <line x1="448" y1="527" x2="462" y2="527" stroke="#B45309" strokeWidth="2.5" strokeDasharray="4,2" />
+            <text x="470" y="531" fill="#57534E" fontSize="9" fontFamily={F}>Pipe</text>
+            <rect x="500" y="522" width="14" height="10" rx="2" fill="#F0FDF4" stroke="#16A34A" strokeWidth="1" />
+            <text x="520" y="531" fill="#57534E" fontSize="9" fontFamily={F}>Sensor</text>
           </svg>
+
+          {/* ══════ TRAP DETAIL PANEL ══════ */}
+          {selected !== null && (
+            <div style={{ marginTop: 16, animation: 'fadeUp 0.3s ease' }}>
+              <Card style={{ borderColor: 'var(--red)', borderWidth: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ background: 'var(--red)', color: '#fff', fontFamily: "'JetBrains Mono'", fontWeight: 700, fontSize: 14, padding: '4px 12px', borderRadius: 6 }}>{traps[selected].id}</span>
+                    <span style={{ fontWeight: 600, fontSize: 16 }}>{traps[selected].label}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'JetBrains Mono'" }}>FOV: {traps[selected].fov}° · 280×180×60 mm · 650g</span>
+                  </div>
+                  <button onClick={() => setSelected(null)} style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13, fontFamily: "'JetBrains Mono'" }}>✕</button>
+                </div>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{traps[selected].reason}</p>
+              </Card>
+            </div>
+          )}
+
+          {/* ══════ RESPONSE TIMING SECTION ══════ */}
+          <div style={{ marginTop: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 2 }}>⏱ Response Timeline — Detect to Eliminate</h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Full autonomous cycle completes in under 3 seconds. Click "Simulate" to step through.</p>
+              </div>
+              <button onClick={() => { setSimTime(0); setSimRunning(true); }} style={{
+                fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 700,
+                background: simRunning ? 'var(--surface-alt)' : 'var(--green)',
+                color: simRunning ? 'var(--text-muted)' : '#fff',
+                border: 'none', borderRadius: 8, padding: '8px 20px', cursor: simRunning ? 'default' : 'pointer',
+              }}>
+                {simRunning ? 'Running…' : '▶ Simulate'}
+              </button>
+            </div>
+
+            {/* Timeline bar */}
+            <div style={{ position: 'relative', marginBottom: 8 }}>
+              <div style={{ height: 6, background: 'var(--surface-alt)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(simTime / 7) * 100}%`, background: 'linear-gradient(90deg, #16A34A, #2563EB, #7C3AED, #DC2626)', borderRadius: 3, transition: 'width 0.5s ease' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono'", color: 'var(--text-muted)' }}>T+0.00s</span>
+                <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono'", color: 'var(--text-muted)' }}>T+2.50s</span>
+              </div>
+            </div>
+
+            {/* Timeline steps */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {timeline.map((s, i) => {
+                const isActive = simTime === i;
+                const isPast = simTime > i;
+                return (
+                  <div key={i} onClick={() => { setSimTime(i); setSimRunning(false); }} style={{
+                    padding: '12px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
+                    background: isActive ? '#fff' : isPast ? 'var(--surface-alt)' : 'var(--surface)',
+                    border: `2px solid ${isActive ? s.color : 'var(--border)'}`,
+                    boxShadow: isActive ? 'var(--shadow-md)' : 'none',
+                    opacity: isPast && !isActive ? 0.5 : 1,
+                    transition: 'all 0.3s',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <span style={{ fontSize: 18 }}>{s.icon}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontWeight: 700, color: isActive ? s.color : 'var(--text-secondary)' }}>T+{s.t}</span>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? s.color : 'var(--text)', marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{s.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Summary stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginTop: 14 }}>
+              {[
+                ['PIR → Camera', '200ms', '#16A34A'],
+                ['ML Inference', '20ms', '#7C3AED'],
+                ['Safety Gate', '40ms', '#B45309'],
+                ['Kill Trigger', '740ms', '#DC2626'],
+                ['Total Cycle', '2.5s', '#1C1917'],
+              ].map(([label, val, col]) => (
+                <div key={label} style={{ background: 'var(--surface-alt)', borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4, fontFamily: "'JetBrains Mono'" }}>{label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono'", color: col }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       );
     }

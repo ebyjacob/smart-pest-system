@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Pest Elimination System — Technical Overview</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #FAFAF9;
+      --surface: #FFFFFF;
+      --surface-alt: #F5F3F0;
+      --border: #E8E4DF;
+      --border-strong: #D1CBC4;
+      --text: #1C1917;
+      --text-secondary: #78716C;
+      --text-muted: #A8A29E;
+      --accent: #B45309;
+      --accent-light: #FEF3C7;
+      --accent-mid: #F59E0B;
+      --red: #DC2626;
+      --red-light: #FEF2F2;
+      --green: #16A34A;
+      --green-light: #F0FDF4;
+      --blue: #2563EB;
+      --blue-light: #EFF6FF;
+      --purple: #7C3AED;
+      --purple-light: #F5F3FF;
+      --radius: 10px;
+      --shadow: 0 1px 3px rgba(28,25,23,0.06), 0 1px 2px rgba(28,25,23,0.04);
+      --shadow-md: 0 4px 12px rgba(28,25,23,0.08), 0 2px 4px rgba(28,25,23,0.04);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.6; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes dash-flow {
+      to { stroke-dashoffset: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    /* ───────── helpers ───────── */
+    const cx = (...classes) => classes.filter(Boolean).join(' ');
+    const TABS = ['Overview', 'Trap Unit', 'Detection', 'Floor Plan', 'Kill Methods'];
+
+    /* ───────── Tab Button ───────── */
+    function TabButton({ label, active, onClick, index }) {
+      return (
+        <button
+          onClick={onClick}
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 13,
+            fontWeight: active ? 700 : 500,
+            color: active ? 'var(--accent)' : 'var(--text-secondary)',
+            background: active ? 'var(--accent-light)' : 'transparent',
+            border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+            padding: '8px 18px',
+            borderRadius: 24,
+            cursor: 'pointer',
+            transition: 'all 0.25s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {label}
+        </button>
+      );
+    }
+
+    /* ───────── Section Card ───────── */
+    function Card({ children, style }) {
+      return (
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: 24,
+          boxShadow: 'var(--shadow)',
+          ...style
+        }}>
+          {children}
+        </div>
+      );
+    }
+
+    /* ───────── Stat Box ───────── */
+    function Stat({ label, value, sub, color }) {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>{label}</div>
+          <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: color || 'var(--text)' }}>{value}</div>
+          {sub && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{sub}</div>}
+        </div>
+      );
+    }
+
+    /* ═══════════ 1. OVERVIEW ═══════════ */
+    function OverviewTab() {
+      const [active, setActive] = useState(0);
+      useEffect(() => {
+        const t = setInterval(() => setActive(a => (a + 1) % 5), 3000);
+        return () => clearInterval(t);
+      }, []);
+
+      const layers = [
+        { label: 'SENSE', icon: '👁️', desc: 'PIR + IR Camera + Sound Sensor', detail: 'Low-power PIR triggers camera wake-up. Thermal anomaly 26–32°C initiates detection pipeline.', color: 'var(--blue)', bg: 'var(--blue-light)' },
+        { label: 'IDENTIFY', icon: '🧠', desc: 'NVIDIA Jetson + YOLOv8-nano CNN', detail: 'Edge inference <15ms/frame. Species classification with configurable confidence threshold (default 95%).', color: 'var(--purple)', bg: 'var(--purple-light)' },
+        { label: 'DECIDE', icon: '⚖️', desc: 'Multi-sensor Fusion + Safety Interlock', detail: 'Minimum 2 sensors must agree. Wide-angle thermal confirms no pets/humans. BLE pet collar geofencing.', color: 'var(--accent)', bg: 'var(--accent-light)' },
+        { label: 'ELIMINATE', icon: '⚡', desc: 'EF Grid → Heat → Plasma → Vacuum', detail: 'Cascading 3-layer kill sequence. Primary: 1.4kV grid (instant). Secondary: 70°C heat (90s). Tertiary: CAP.', color: 'var(--red)', bg: 'var(--red-light)' },
+        { label: 'REPORT', icon: '📊', desc: 'MQTT → Dashboard + Mobile Alerts', detail: 'Kill photo + timestamp + sensor data transmitted. Predictive analytics for infestation risk scoring.', color: 'var(--green)', bg: 'var(--green-light)' },
+      ];
+
+      return (
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>System Architecture</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>Five-layer autonomous pipeline from detection to reporting. Total latency: &lt;3 seconds.</p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {layers.map((l, i) => {
+              const isActive = active === i;
+              return (
+                <div
+                  key={i}
+                  onClick={() => setActive(i)}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 16,
+                    padding: '16px 20px',
+                    background: isActive ? l.bg : 'var(--surface)',
+                    border: `1.5px solid ${isActive ? l.color : 'var(--border)'}`,
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: isActive ? 'var(--shadow-md)' : 'none',
+                  }}
+                >
+                  {/* Step indicator */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: isActive ? l.color : 'var(--surface-alt)',
+                    color: isActive ? '#fff' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, fontWeight: 700, fontFamily: "'JetBrains Mono'",
+                    flexShrink: 0, transition: 'all 0.3s',
+                  }}>
+                    {isActive ? l.icon : `0${i + 1}`}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600, fontSize: 13, color: isActive ? l.color : 'var(--text)' }}>{l.label}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{l.desc}</span>
+                    </div>
+                    {isActive && (
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5, animation: 'fadeUp 0.3s ease' }}>{l.detail}</p>
+                    )}
+                  </div>
+                  {/* Connection line */}
+                  {i < 4 && (
+                    <div style={{
+                      position: 'relative',
+                      width: 2,
+                      background: active > i ? l.color : 'var(--border)',
+                      transition: 'background 0.3s',
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    /* ═══════════ 2. TRAP UNIT ═══════════ */
+    function TrapUnitTab() {
+      const [phase, setPhase] = useState(0);
+      const phases = ['Standby', 'Detected', 'Entering', 'Kill', 'Report'];
+      const phaseColors = ['var(--text-muted)', 'var(--blue)', 'var(--accent)', 'var(--red)', 'var(--green)'];
+
+      useEffect(() => {
+        const t = setInterval(() => setPhase(p => (p + 1) % 5), 2800);
+        return () => clearInterval(t);
+      }, []);
+
+      return (
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Smart Trap Unit — Cross-Section</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 16 }}>Animated operation sequence showing the full detect → capture → eliminate cycle.</p>
+
+          {/* Phase indicators */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+            {phases.map((ph, i) => (
+              <span key={i} style={{
+                fontSize: 12, fontWeight: 600, padding: '5px 14px', borderRadius: 20,
+                fontFamily: "'JetBrains Mono'",
+                background: phase === i ? phaseColors[i] : 'transparent',
+                color: phase === i ? '#fff' : 'var(--text-muted)',
+                border: `1.5px solid ${phase === i ? phaseColors[i] : 'var(--border)'}`,
+                transition: 'all 0.3s',
+              }}>{ph}</span>
+            ))}
+          </div>
+
+          <svg viewBox="0 0 720 420" style={{ width: '100%', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <defs>
+              <linearGradient id="housing" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#F5F3F0" />
+                <stop offset="100%" stopColor="#E8E4DF" />
+              </linearGradient>
+            </defs>
+
+            {/* Housing */}
+            <rect x="60" y="30" width="600" height="340" rx="12" fill="url(#housing)" stroke={phaseColors[phase]} strokeWidth="2" style={{ transition: 'stroke 0.3s' }} />
+            <text x="80" y="55" fill="#A8A29E" fontSize="10" fontFamily="JetBrains Mono" fontWeight="500">HOUSING — ABS/Steel · IP54 · 280×180×60mm</text>
+
+            {/* Camera Module */}
+            <rect x="80" y="70" width="110" height="60" rx="8" fill="#fff" stroke={phase >= 1 ? '#2563EB' : '#D1CBC4'} strokeWidth="1.5" style={{ transition: 'stroke 0.3s' }} />
+            <circle cx="135" cy="96" r="14" fill={phase >= 1 ? '#EFF6FF' : '#F5F3F0'} stroke={phase >= 1 ? '#2563EB' : '#D1CBC4'} strokeWidth="1.5" />
+            <circle cx="135" cy="96" r="6" fill={phase >= 1 ? '#2563EB' : '#D1CBC4'} />
+            {phase >= 1 && <circle cx="135" cy="96" r="20" fill="none" stroke="#2563EB" strokeWidth="1" opacity="0.4">
+              <animate attributeName="r" values="14;24;14" dur="1.8s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.5;0;0.5" dur="1.8s" repeatCount="indefinite" />
+            </circle>}
+            <text x="88" y="148" fill="#2563EB" fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">IR Camera</text>
+            <text x="88" y="160" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">YOLOv8 @30fps</text>
+
+            {/* PIR */}
+            <rect x="210" y="70" width="80" height="60" rx="8" fill="#fff" stroke={phase === 1 ? '#16A34A' : '#D1CBC4'} strokeWidth="1.5" />
+            <path d="M230 96 Q250 80 270 96 Q250 112 230 96" fill="none" stroke={phase === 1 ? '#16A34A' : '#D1CBC4'} strokeWidth="2" />
+            <text x="218" y="148" fill="#16A34A" fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">PIR Sensor</text>
+            <text x="218" y="160" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">Motion trigger</text>
+
+            {/* Jetson */}
+            <rect x="310" y="70" width="110" height="60" rx="8" fill="#fff" stroke="#7C3AED" strokeWidth="1.5" />
+            <rect x="322" y="82" width="86" height="36" rx="4" fill="#F5F3FF" stroke="#7C3AED" strokeWidth="1" />
+            <text x="340" y="100" fill="#7C3AED" fontSize="8" fontWeight="700" fontFamily="JetBrains Mono">NVIDIA</text>
+            <text x="334" y="112" fill="#78716C" fontSize="7" fontFamily="JetBrains Mono">Jetson Orin Nano</text>
+            <text x="318" y="148" fill="#7C3AED" fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">Edge Compute</text>
+            <text x="318" y="160" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">CNN Inference</text>
+
+            {/* Comms */}
+            <rect x="440" y="70" width="100" height="60" rx="8" fill="#fff" stroke="#B45309" strokeWidth="1.5" />
+            <text x="475" y="98" textAnchor="middle" fontSize="18">📡</text>
+            <text x="475" y="114" textAnchor="middle" fill="#B45309" fontSize="8" fontFamily="JetBrains Mono">WiFi / LoRa</text>
+            <text x="448" y="148" fill="#B45309" fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">Comms</text>
+            <text x="448" y="160" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">MQTT Telemetry</text>
+
+            {/* Safety */}
+            <rect x="560" y="70" width="80" height="60" rx="8" fill={phase === 3 ? '#F0FDF4' : '#fff'} stroke="#16A34A" strokeWidth="1.5" />
+            <text x="600" y="96" textAnchor="middle" fontSize="16">{phase === 3 ? '✅' : '🔒'}</text>
+            <text x="600" y="114" textAnchor="middle" fill="#16A34A" fontSize="8" fontFamily="JetBrains Mono" fontWeight="600">SAFE</text>
+            <text x="568" y="148" fill="#16A34A" fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">Interlock</text>
+            <text x="568" y="160" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">Fail-safe</text>
+
+            {/* Entry Tunnel */}
+            <rect x="80" y="185" width="70" height="35" rx="6" fill="#FEF3C7" stroke="#B45309" strokeWidth="1" strokeDasharray="5,3" />
+            <text x="90" y="207" fill="#B45309" fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">ENTRY</text>
+            <polygon points="160,195 180,202 160,210" fill={phase >= 2 ? '#B45309' : '#D1CBC4'} style={{ transition: 'fill 0.3s' }} />
+
+            {/* One-way valve */}
+            <rect x="185" y="192" width="30" height="22" rx="3" fill="#fff" stroke="#B45309" strokeWidth="1" />
+            <text x="192" y="207" fill="#B45309" fontSize="7" fontFamily="JetBrains Mono" fontWeight="600">1-W</text>
+
+            {/* Kill Chamber */}
+            <rect x="225" y="175" width="290" height="170" rx="10" fill={phase === 3 ? '#FEF2F2' : '#FAFAF9'} stroke={phase === 3 ? '#DC2626' : '#D1CBC4'} strokeWidth={phase === 3 ? 2.5 : 1.5} style={{ transition: 'all 0.3s' }} />
+            <text x="370" y="197" textAnchor="middle" fill={phase === 3 ? '#DC2626' : '#78716C'} fontSize="12" fontFamily="JetBrains Mono" fontWeight="700">KILL CHAMBER</text>
+
+            {/* EF Grid lines */}
+            {[0,1,2,3,4,5].map(i => (
+              <line key={`g${i}`} x1={245 + i * 48} y1="210" x2={245 + i * 48} y2="330" stroke={phase === 3 ? '#DC2626' : '#E8E4DF'} strokeWidth="1.5" strokeDasharray="6,4" style={{ transition: 'stroke 0.3s' }} />
+            ))}
+            <text x="235" y="345" fill={phase === 3 ? '#DC2626' : '#A8A29E'} fontSize="8" fontFamily="JetBrains Mono" fontWeight="500">⚡ HIGH-VOLTAGE GRID — 1.4kV DC · &lt;5mA</text>
+
+            {/* Heat element bar */}
+            <rect x="235" y="318" width="270" height="12" rx="3" fill={phase === 3 ? '#FEF3C7' : '#F5F3F0'} stroke={phase === 3 ? '#B45309' : '#E8E4DF'} strokeWidth="1" />
+            <text x="370" y="328" textAnchor="middle" fill={phase === 3 ? '#B45309' : '#A8A29E'} fontSize="7" fontFamily="JetBrains Mono">🔥 IR HEAT — 70°C target</text>
+
+            {/* Plasma nozzle */}
+            <rect x="460" y="215" width="42" height="75" rx="6" fill={phase === 3 ? '#EFF6FF' : '#fff'} stroke={phase === 3 ? '#2563EB' : '#D1CBC4'} strokeWidth="1.5" />
+            <text x="466" y="258" fill="#2563EB" fontSize="7" fontFamily="JetBrains Mono" fontWeight="600">CAP</text>
+            <text x="464" y="270" fill="#2563EB" fontSize="6" fontFamily="JetBrains Mono">Plasma</text>
+            {phase === 3 && [0,1,2,3,4,5].map(i => (
+              <circle key={`p${i}`} cx={481 + Math.cos(i*60*Math.PI/180)*15} cy={245 + Math.sin(i*60*Math.PI/180)*15} r="2.5" fill="#2563EB" opacity="0.5">
+                <animate attributeName="r" values="2;5;2" dur="1s" begin={`${i*0.15}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.7;0.1;0.7" dur="1s" begin={`${i*0.15}s`} repeatCount="indefinite" />
+              </circle>
+            ))}
+
+            {/* Suction fan */}
+            <circle cx="370" cy="270" r="24" fill={phase >= 2 ? '#EFF6FF' : '#F5F3F0'} stroke={phase >= 2 ? '#2563EB' : '#D1CBC4'} strokeWidth="1.5" />
+            <text x="370" y="275" textAnchor="middle" fontSize="16">{phase >= 2 ? '🌀' : '⭕'}</text>
+            <text x="370" y="303" textAnchor="middle" fill="#2563EB" fontSize="7" fontFamily="JetBrains Mono">SUCTION FAN</text>
+
+            {/* Roach */}
+            {(phase === 1 || phase === 2) && (
+              <text x={phase === 1 ? 120 : 250} y={202} fontSize="16" style={{ transition: 'all 1s ease-in-out' }}>🪳</text>
+            )}
+
+            {/* Bait */}
+            <rect x="80" y="235" width="60" height="40" rx="6" fill="#FEF3C7" stroke="#B45309" strokeWidth="1" />
+            <text x="88" y="255" fill="#B45309" fontSize="8" fontFamily="JetBrains Mono" fontWeight="600">BAIT</text>
+            <text x="84" y="267" fill="#A8A29E" fontSize="7" fontFamily="JetBrains Mono">Pheromone</text>
+
+            {/* Pet sensor */}
+            <rect x="560" y="185" width="80" height="50" rx="8" fill="#fff" stroke="#B45309" strokeWidth="1.5" />
+            <text x="600" y="210" textAnchor="middle" fontSize="14">🐾</text>
+            <text x="600" y="228" textAnchor="middle" fill="#B45309" fontSize="8" fontFamily="JetBrains Mono" fontWeight="600">Pet Detect</text>
+
+            {/* Waste tray */}
+            <rect x="225" y="358" width="290" height="25" rx="5" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1" />
+            <text x="370" y="375" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily="JetBrains Mono">♻️ Removable Waste Tray</text>
+
+            {/* Specs */}
+            <text x="360" y="408" textAnchor="middle" fill="#A8A29E" fontSize="9" fontFamily="JetBrains Mono">280mm × 180mm × 60mm · 650g · 12V DC / 15W · IP54</text>
+          </svg>
+        </div>
+      );
+    }
+
+    /* ═══════════ 3. DETECTION FLOW ═══════════ */
+    function DetectionTab() {
+      const [step, setStep] = useState(0);
+      useEffect(() => {
+        const t = setInterval(() => setStep(s => (s + 1) % 8), 2200);
+        return () => clearInterval(t);
+      }, []);
+
+      const steps = [
+        { icon: '🌡️', label: 'PIR Trigger', detail: 'Body heat signature detected within 3m range. Thermal anomaly 26–32°C consistent with Blattodea.', time: '0ms', color: 'var(--green)' },
+        { icon: '📷', label: 'Camera Wake', detail: 'IR camera module powers on from sleep. Dual-stream IR+RGB capture at 640×480. Power-on latency <200ms.', time: '200ms', color: 'var(--blue)' },
+        { icon: '🧠', label: 'ML Classify', detail: 'YOLOv8-nano inference on Jetson Orin Nano. Classes: TARGET_PEST / NON_TARGET / BACKGROUND. Inference <15ms.', time: '215ms', color: 'var(--purple)' },
+        { icon: '🐾', label: 'Pet/Human Scan', detail: 'Wide-angle thermal confirms no organisms >500g in exclusion zone. BLE pet beacon check. Time-window validation.', time: '250ms', color: 'var(--accent)' },
+        { icon: '✅', label: 'Sensor Fusion', detail: 'Minimum 2 independent modalities must agree: (Camera+PIR) OR (Camera+Sound). Reject if ambiguous.', time: '260ms', color: 'var(--green)' },
+        { icon: '🎯', label: 'Bait Dispense', detail: 'Micro-pump releases 0.5ml aggregation pheromone from sealed cartridge to attract target toward entry tunnel.', time: '500ms', color: 'var(--accent)' },
+        { icon: '💀', label: 'Kill Cascade', detail: 'Primary: 1.4kV EF grid (instant). Secondary: 70°C IR heat (90s). Tertiary: Cold atmospheric plasma (30s).', time: '1.0s', color: 'var(--red)' },
+        { icon: '📊', label: 'Report & Log', detail: 'Kill photo + timestamp + confidence score + sensor readings transmitted via MQTT to dashboard. Push notification sent.', time: '2.5s', color: 'var(--blue)' },
+      ];
+
+      return (
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Detection → Elimination Pipeline</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>8-step autonomous sequence. End-to-end latency under 3 seconds.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 20 }}>
+            {steps.map((s, i) => {
+              const isActive = step === i;
+              const isPast = step > i;
+              return (
+                <div key={i} onClick={() => setStep(i)} style={{
+                  padding: '14px 12px',
+                  background: isActive ? '#fff' : 'var(--surface-alt)',
+                  border: `1.5px solid ${isActive ? s.color : 'var(--border)'}`,
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  boxShadow: isActive ? 'var(--shadow-md)' : 'none',
+                  transition: 'all 0.3s',
+                  opacity: isPast ? 0.5 : 1,
+                }}>
+                  <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, fontFamily: "'JetBrains Mono'", color: isActive ? s.color : 'var(--text-secondary)' }}>{s.label}</div>
+                  <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: 'var(--text-muted)', marginTop: 4 }}>T+{s.time}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Detail panel */}
+          <Card style={{ borderColor: steps[step].color, animation: 'fadeUp 0.3s ease' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <span style={{ fontSize: 28 }}>{steps[step].icon}</span>
+              <div>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, fontSize: 14, color: steps[step].color }}>STEP {step + 1}: </span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{steps[step].label}</span>
+              </div>
+              <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono'", fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface-alt)', padding: '4px 10px', borderRadius: 12 }}>T+{steps[step].time}</span>
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{steps[step].detail}</p>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ═══════════ 4. FLOOR PLAN ═══════════ */
+    function FloorPlanTab() {
+      const [showRisk, setShowRisk] = useState(true);
+
+      return (
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Deployment — Kitchen Floor Plan</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12 }}>Strategic placement at high-risk entry points. Blue zones = camera coverage. Red zones = cockroach risk areas.</p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, cursor: 'pointer' }}>
+            <input type="checkbox" checked={showRisk} onChange={e => setShowRisk(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+            Show cockroach risk heat map
+          </label>
+
+          <svg viewBox="0 0 700 480" style={{ width: '100%', background: '#fff', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <defs>
+              <radialGradient id="camG" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#2563EB" stopOpacity="0.1" /><stop offset="100%" stopColor="#2563EB" stopOpacity="0" /></radialGradient>
+              <radialGradient id="riskG" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#DC2626" stopOpacity="0.15" /><stop offset="100%" stopColor="#DC2626" stopOpacity="0" /></radialGradient>
+            </defs>
+
+            {/* Room */}
+            <rect x="40" y="30" width="620" height="410" rx="4" fill="#FAFAF9" stroke="#D1CBC4" strokeWidth="2.5" />
+
+            {/* Fixtures */}
+            <rect x="40" y="30" width="200" height="75" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1.5" />
+            <text x="110" y="72" fill="#78716C" fontSize="11" fontFamily="JetBrains Mono" textAnchor="middle">Counter</text>
+
+            <rect x="250" y="30" width="80" height="55" rx="8" fill="#EFF6FF" stroke="#D1CBC4" strokeWidth="1.5" />
+            <text x="290" y="62" fill="#78716C" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">Sink</text>
+
+            <rect x="350" y="30" width="90" height="55" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1.5" />
+            <text x="395" y="62" fill="#78716C" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">Stove</text>
+
+            <rect x="555" y="30" width="105" height="110" fill="#F5F3F0" stroke="#D1CBC4" strokeWidth="1.5" />
+            <text x="608" y="90" fill="#78716C" fontSize="10" fontFamily="JetBrains Mono" textAnchor="middle">Fridge</text>
+
+            {/* Drain */}
+            <circle cx="290" cy="115" r="10" fill="#FEF2F2" stroke="#DC2626" strokeWidth="1.5" strokeDasharray="4,2" />
+            <text x="290" y="119" textAnchor="middle" fill="#DC2626" fontSize="7" fontFamily="JetBrains Mono">DRAIN</text>
+
+            {/* Door */}
+            <rect x="40" y="310" width="6" height="75" fill="#B45309" rx="2" />
+            <text x="56" y="352" fill="#B45309" fontSize="10" fontFamily="JetBrains Mono" fontWeight="600">Door</text>
+
+            {/* Risk zones */}
+            {showRisk && <>
+              <circle cx="290" cy="115" r="75" fill="url(#riskG)" />
+              <circle cx="140" cy="72" r="55" fill="url(#riskG)" />
+              <circle cx="608" cy="140" r="65" fill="url(#riskG)" />
+              <circle cx="46" cy="347" r="45" fill="url(#riskG)" />
+            </>}
+
+            {/* Trap T1 */}
+            <rect x="262" y="100" width="36" height="22" rx="5" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
+            <text x="280" y="115" textAnchor="middle" fill="#DC2626" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">T1</text>
+            <circle cx="280" cy="111" r="45" fill="url(#camG)"><animate attributeName="r" values="40;50;40" dur="3s" repeatCount="indefinite" /></circle>
+
+            {/* Trap T2 */}
+            <rect x="540" y="148" width="36" height="22" rx="5" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
+            <text x="558" y="163" textAnchor="middle" fill="#DC2626" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">T2</text>
+            <circle cx="558" cy="159" r="45" fill="url(#camG)"><animate attributeName="r" values="40;50;40" dur="3s" repeatCount="indefinite" /></circle>
+
+            {/* Trap T3 */}
+            <rect x="62" y="328" width="36" height="22" rx="5" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
+            <text x="80" y="343" textAnchor="middle" fill="#DC2626" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono">T3</text>
+            <circle cx="80" cy="339" r="45" fill="url(#camG)"><animate attributeName="r" values="40;50;40" dur="3s" repeatCount="indefinite" /></circle>
+
+            {/* Env Sensor */}
+            <rect x="380" y="230" width="48" height="28" rx="5" fill="#F0FDF4" stroke="#16A34A" strokeWidth="1.5" />
+            <text x="404" y="248" textAnchor="middle" fill="#16A34A" fontSize="8" fontFamily="JetBrains Mono" fontWeight="600">ENV</text>
+            <text x="404" y="272" textAnchor="middle" fill="#78716C" fontSize="7" fontFamily="JetBrains Mono">Temp/RH/VOC</text>
+
+            {/* Gateway */}
+            <rect x="290" y="360" width="100" height="45" rx="8" fill="#F5F3FF" stroke="#7C3AED" strokeWidth="2" />
+            <text x="340" y="380" textAnchor="middle" fill="#7C3AED" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono">GATEWAY</text>
+            <text x="340" y="394" textAnchor="middle" fill="#7C3AED" fontSize="8" fontFamily="JetBrains Mono">HUB</text>
+            <text x="340" y="420" textAnchor="middle" fill="#A8A29E" fontSize="8" fontFamily="JetBrains Mono">MQTT → Cloud Dashboard</text>
+
+            {/* Connections */}
+            {[[280,111,340,360],[558,159,340,360],[80,339,340,360],[404,258,340,360]].map(([x1,y1,x2,y2], i) => (
+              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7C3AED" strokeWidth="1" strokeDasharray="6,4" opacity="0.35">
+                <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1.2s" repeatCount="indefinite" />
+              </line>
+            ))}
+
+            {/* Legend */}
+            <rect x="465" y="330" width="180" height="95" rx="8" fill="#FAFAF9" stroke="#E8E4DF" strokeWidth="1" />
+            <text x="480" y="350" fill="#78716C" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono">Legend</text>
+            <rect x="480" y="358" width="10" height="7" rx="2" fill="#FEF2F2" stroke="#DC2626" strokeWidth="1" />
+            <text x="498" y="365" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Smart Trap Unit</text>
+            <circle cx="485" y="380" r="5" fill="#2563EB" opacity="0.15" stroke="#2563EB" strokeWidth="0.5" />
+            <text x="498" y="383" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Camera Coverage</text>
+            <circle cx="485" cy="398" r="5" fill="#DC2626" opacity="0.15" />
+            <text x="498" y="401" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Risk Zone</text>
+            <rect x="480" y="409" width="10" height="7" rx="2" fill="#F0FDF4" stroke="#16A34A" strokeWidth="1" />
+            <text x="498" y="416" fill="#78716C" fontSize="8" fontFamily="JetBrains Mono">Env Sensor</text>
+          </svg>
+        </div>
+      );
+    }
+
+    /* ═══════════ 5. KILL METHODS ═══════════ */
+    function KillMethodsTab() {
+      const [sel, setSel] = useState(0);
+      const methods = [
+        {
+          name: 'Electric Field Grid', icon: '⚡', color: 'var(--red)', bg: 'var(--red-light)', trl: 8, rate: '99%+', speed: 'Instant', eggs: false,
+          desc: 'High-voltage (1.4kV) insulated conductor grid within enclosed chamber. Cockroach contacts alternating-polarity conductors, completing circuit through body for instant neuromuscular disruption. Current limited to <5mA — safe even on accidental human contact.',
+          specs: ['Voltage: 1,400V DC', 'Current: <5mA (human-safe)', 'Grid spacing: 4mm', 'Power: 3W standby / 8W active', 'Kill time: <100ms']
+        },
+        {
+          name: 'IR Heat Chamber', icon: '🔥', color: 'var(--accent)', bg: 'var(--accent-light)', trl: 7, rate: '100%', speed: '90 sec', eggs: true,
+          desc: 'Ceramic infrared heating element raises enclosed chamber to 70°C. The only method that kills all life stages including eggs within oothecae (egg cases). Also denatures allergen proteins and sanitises. Insulated housing keeps external surface below 40°C.',
+          specs: ['Target temp: 68–71°C', 'Element: Ceramic IR', 'Chamber: Insulated steel', 'Power: 12W peak', 'Egg kill rate: 100%']
+        },
+        {
+          name: 'Cold Plasma', icon: '🌩️', color: 'var(--blue)', bg: 'var(--blue-light)', trl: 4, rate: '95–100%', speed: '10–30s', eggs: true,
+          desc: 'Dielectric barrier discharge generates ionized gas with reactive oxygen/nitrogen species (O₃, OH•, NO₂) at near room temperature. Destroys cellular structure through oxidative damage. Additionally sterilises surviving adults with up to 75% fertility reduction.',
+          specs: ['Generator: DBD reactor', 'Gas source: Ambient air', 'Temp: Near-ambient', 'ROS/RNS output: O₃, OH•, NO₂', 'Power: 40–60W pulsed']
+        },
+        {
+          name: 'Vacuum Capture', icon: '🌀', color: 'var(--purple)', bg: 'var(--purple-light)', trl: 6, rate: '95%+', speed: 'Instant', eggs: false,
+          desc: 'High-speed centrifugal fan creates localised suction activated by AI vision when cockroach is within 30cm of intake. Insect is pulled through 25mm intake into kill chamber where EF grid completes elimination. 15mm mesh guard prevents non-insect capture.',
+          specs: ['Fan speed: 4,600 RPM', 'Airflow: 900 m³/h', 'Intake diameter: 25mm', 'Guard mesh: 15mm', 'Trigger range: 30cm']
+        },
+      ];
+
+      const m = methods[sel];
+
+      return (
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Kill Methods — Detailed Comparison</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 16 }}>Four elimination technologies operating in configurable cascade sequence.</p>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            {methods.map((mt, i) => (
+              <button key={i} onClick={() => setSel(i)} style={{
+                fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+                background: sel === i ? mt.bg : 'var(--surface)',
+                color: sel === i ? mt.color : 'var(--text-secondary)',
+                border: `1.5px solid ${sel === i ? mt.color : 'var(--border)'}`,
+                padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.3s',
+              }}>
+                <span style={{ fontSize: 18 }}>{mt.icon}</span> {mt.name}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {/* Left: description */}
+            <Card>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>{m.icon}</div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: m.color }}>{m.name}</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: 20 }}>{m.desc}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[
+                  ['Kill Rate', m.rate, m.color],
+                  ['Speed', m.speed, m.color],
+                  ['TRL Level', `${m.trl}/9`, m.color],
+                  ['Kills Eggs?', m.eggs ? '✅ Yes' : '❌ No', m.eggs ? 'var(--green)' : 'var(--red)'],
+                ].map(([label, val, c], i) => (
+                  <div key={i} style={{ background: 'var(--surface-alt)', borderRadius: 8, padding: 10 }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono'", color: c, marginTop: 2 }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Right: specs */}
+            <Card>
+              <h4 style={{ fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono'", color: m.color, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 1 }}>Technical Specs</h4>
+              {m.specs.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontFamily: "'JetBrains Mono'", color: 'var(--text-secondary)' }}>{s}</span>
+                </div>
+              ))}
+
+              <div style={{ marginTop: 20, padding: 14, background: 'var(--green-light)', borderRadius: 8, border: '1px solid #BBF7D0' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', fontFamily: "'JetBrains Mono'", marginBottom: 6 }}>🔒 Safety Rating</div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[1,2,3,4,5].map(s => <span key={s} style={{ color: s <= (m.trl >= 7 ? 5 : 4) ? 'var(--accent)' : 'var(--border)', fontSize: 16 }}>★</span>)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5 }}>Fully enclosed chamber · Auto-disable on lid removal · Pet-size thermal interlock · Hardware fail-safe (normally-open relays)</div>
+              </div>
+
+              <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-light)', borderRadius: 8, border: '1px solid #FDE68A' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', fontFamily: "'JetBrains Mono'", marginBottom: 6 }}>⚡ AI Trigger Condition</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>Activates ONLY when CNN model confirms cockroach at &gt;95% confidence AND safety interlock confirms zero pets/humans in exclusion zone.</div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    /* ═══════════ MAIN APP ═══════════ */
+    function App() {
+      const [tab, setTab] = useState(0);
+
+      return (
+        <div style={{ maxWidth: 820, margin: '0 auto', padding: '32px 20px 60px' }}>
+          {/* Header */}
+          <header style={{ marginBottom: 32, textAlign: 'center' }}>
+            <p style={{ fontSize: 11, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700, fontFamily: "'JetBrains Mono'", marginBottom: 8 }}>Technical Overview</p>
+            <h1 style={{ fontSize: 30, fontWeight: 700, color: 'var(--text)', lineHeight: 1.25, marginBottom: 6 }}>Smart Pest Elimination System</h1>
+            <p style={{ fontSize: 15, color: 'var(--text-secondary)', maxWidth: 560, margin: '0 auto' }}>IoT + AI/ML hybrid architecture for autonomous, chemical-free cockroach detection and elimination — safe for humans and pets.</p>
+          </header>
+
+          {/* Stats bar */}
+          <Card style={{ marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <Stat label="Unit Cost" value="~£350" sub="per trap unit" color="var(--text)" />
+              <Stat label="Detection" value="98.9%" sub="YOLOv8 + multi-sensor" color="var(--blue)" />
+              <Stat label="Kill Rate" value="99.5%" sub="3-layer cascade" color="var(--red)" />
+              <Stat label="Latency" value="<3s" sub="detect → eliminate" color="var(--green)" />
+            </div>
+          </Card>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 24, overflowX: 'auto', paddingBottom: 4 }}>
+            {TABS.map((t, i) => <TabButton key={i} label={t} active={tab === i} onClick={() => setTab(i)} index={i} />)}
+          </div>
+
+          {/* Tab content */}
+          <Card style={{ animation: 'fadeUp 0.35s ease' }} key={tab}>
+            {tab === 0 && <OverviewTab />}
+            {tab === 1 && <TrapUnitTab />}
+            {tab === 2 && <DetectionTab />}
+            {tab === 3 && <FloorPlanTab />}
+            {tab === 4 && <KillMethodsTab />}
+          </Card>
+
+          {/* Footer */}
+          <footer style={{ textAlign: 'center', marginTop: 32, padding: '16px 0', borderTop: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'JetBrains Mono'" }}>Patent Pending · Chemical-Free · IoT Connected · AI-Driven Safety</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.render(React.createElement(App), document.getElementById('root'));
+  </script>
+</body>
+</html>
